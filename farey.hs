@@ -19,11 +19,17 @@ instance Num Fraction where
 
 piFrac :: Integer -> Fraction
 piFrac n = ((Fraction (2,1))*(prod 1 3 n) - 3)
-
+           
 prod :: Integer -> Integer -> Integer -> Fraction 
 prod a b n | a > n = 1
            | otherwise = (Fraction (1,1)) + (Fraction (a, b))*(prod (a + 1) (b + 2) n)
-                                             
+
+eFrac :: Integer -> Fraction
+eFrac n = foldl' (+) (Fraction (2,1)) [Fraction (1, factorial j) | j <- [2..n]]
+
+factorial :: Integer -> Integer
+factorial n = product [1..n]
+                         
 instance Ord Fraction where
     (<=) (Fraction (a,b)) (Fraction (c,d)) = a*d <= b*c
                        
@@ -56,9 +62,14 @@ fareySearch a (Branch c d e) | a > e  = R : (fareySearch a d)
 reduceFraction :: Fraction -> Fraction
 reduceFraction (Fraction (a,b)) = let d = gcd a b
                                   in  Fraction (div a d, div b d)
-                                        
+
+addToEndList :: (Num a) => a -> [a] -> [a]
+addToEndList x s = let t = (+) x $ head $ reverse s
+                       o = take ((length s) - 1)  s
+                   in  mappend o [t]
+                                      
 continuedFrac :: Fraction -> [Int]
-continuedFrac a = fmap length $ group $ fareySearch (reduceFraction a) fareyFullTree
+continuedFrac a = addToEndList 1 $ fmap length $ group $ fareySearch (reduceFraction a) fareyFullTree
 
 fareyFullTree :: FareyTree
 fareyFullTree = fareyTree (Fraction (0,1)) (Fraction (1,0))
@@ -70,16 +81,22 @@ fareyTree (Fraction (a,n)) (Fraction (a',n')) =
 
 log2 :: Integer -> Integer
 log2 a = toInteger $ length $ takeWhile (/= 0) $ iterate (\x -> div x 2) a
-        
+
+fetchDigits :: IO Integer
+fetchDigits = do
+  putStrLn "how many digits?"
+  w <- getLine
+  return $ log2 $ (10^(read w :: Integer)) 
+         
 main :: IO ()
 main =
     do
       [str] <- getArgs
-      if str == "pi"
-      then do
-        putStrLn "how many digits? "
-        w <- getLine
-        print $ show $ continuedFrac $ piFrac $ log2 (10^(read w :: Integer))
-      else do
-        putStrLn (((show . fst . parse) str) ++ " + " ++
-                  ((show . continuedFrac . snd . parse) str))
+      if str == "pi" then
+          fetchDigits >>= print . show . continuedFrac . piFrac
+      else if str == "e" then
+               fetchDigits >>= print . show . continuedFrac . eFrac
+           else
+               putStrLn (((show . fst . parse) str) ++ " + " ++
+                         ((show . continuedFrac . snd . parse) str))
+
